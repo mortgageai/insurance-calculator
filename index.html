@@ -1,0 +1,3078 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ингосстрах - ипотечный парсер(калькулятор) страхования</title>
+  <meta name="description" content="Ингосстрах - ипотечный парсер страхования - быстрый расчет стоимости ипотечного страхования">
+
+  <link rel="stylesheet" href="ingosstrax_style_3d.css?v=8">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Автоматическое определение устройства и управление версиями -->
+  <script>
+    (function() {
+      // Проверка на мобильное устройство
+      function isMobile() {
+        // Проверка по User-Agent
+        const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+        const isMobileUA = mobileRegex.test(navigator.userAgent);
+
+        // Проверка по размеру экрана (планшеты считаем десктопом)
+        const isSmallScreen = window.innerWidth <= 768 && window.innerHeight <= 1024;
+
+        // Проверка на touch-устройства
+        const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+        return (isMobileUA && isSmallScreen) || (hasTouch && isSmallScreen);
+      }
+
+      // Проверка на планшет
+      function isTablet() {
+        return /iPad|Android(?=.*\bMobile\b)|Tablet/i.test(navigator.userAgent) ||
+               (window.innerWidth > 768 && window.innerWidth <= 1024);
+      }
+
+      // Получение параметра версии из URL
+      function getVersionParam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('version');
+      }
+
+      // Определение нужной версии
+      function getTargetVersion() {
+        const versionParam = getVersionParam();
+
+        // Принудительное указание версии через URL параметр
+        if (versionParam === 'mobile') return 'mobile';
+        if (versionParam === 'desktop') return 'desktop';
+
+        // Автоматическое определение
+        if (isMobile()) return 'mobile';
+        if (isTablet()) return 'desktop'; // Планшеты используют десктоп версию
+
+        return 'desktop'; // По умолчанию десктоп
+      }
+
+      const currentVersion = window.location.href.includes('mobile') ? 'mobile' : 'desktop';
+      const targetVersion = getTargetVersion();
+
+      // Перенаправление если нужно
+      if (currentVersion !== targetVersion) {
+        const newUrl = targetVersion === 'mobile' ? 'index_mobile.html' : 'index.html';
+        window.location.href = newUrl + window.location.search;
+      }
+
+      // Добавление ссылок для переключения версий (для тестирования)
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        setTimeout(() => {
+          const versionSwitcher = document.createElement('div');
+          versionSwitcher.innerHTML = `
+            <div style="position: fixed; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.8); color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px;">
+              Версия: ${currentVersion === 'mobile' ? 'Мобильная' : 'Десктоп'}
+              <br>
+              <a href="?version=mobile" style="color: #4ade80; text-decoration: none;">Моб.</a> |
+              <a href="?version=desktop" style="color: #60a5fa; text-decoration: none;">Деск.</a> |
+              <a href="version_test.html" style="color: #fbbf24; text-decoration: none;">Тест</a>
+            </div>
+          `;
+          document.body.appendChild(versionSwitcher);
+        }, 1000);
+      }
+    })();
+  </script>
+
+  <!-- Fallback стили на случай проблем с загрузкой CSS -->
+  <style>
+    /* Базовые стили для корректного отображения */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f1419 0%, #1a2332 100%);
+      color: white;
+      min-height: 100vh;
+    }
+    .hero-section {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+    .hero-title {
+      font-size: 4rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 20px;
+      text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    }
+    .main-content {
+      background: white;
+      color: #333;
+      border-radius: 30px 30px 0 0;
+      margin-top: -50px;
+      padding: 40px 20px;
+    }
+    .calculation-card {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      margin: 40px auto;
+      max-width: 800px;
+    }
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px;
+    }
+
+    /* Стили для списка банков */
+    .banks-section {
+      margin: 40px 0;
+      text-align: center;
+    }
+    .banks-title {
+      font-size: 1.5rem;
+      color: #1e293b;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    .banks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .bank-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+      font-weight: 500;
+      color: #475569;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    .bank-item:hover {
+      background: #3b82f6;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    /* Стили для андеррайтинга */
+    .underwriting-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(34, 197, 94, 0.1));
+      border-radius: 12px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      text-align: center;
+    }
+
+    .underwriting-info p {
+      margin: 0;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .btn-underwriting {
+      background: linear-gradient(135deg, #8b5cf6, #a855f7);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 5px;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-underwriting:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+    }
+
+    /* Модальное окно */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: modalFadeIn 0.3s ease-out;
+    }
+
+    @keyframes modalFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 25px 30px;
+      border-bottom: 1px solid #e2e8f0;
+      background: linear-gradient(135deg, #f8fafc, #ffffff);
+      border-radius: 20px 20px 0 0;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      color: #1e293b;
+      font-size: 1.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #64748b;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    .modal-body {
+      padding: 30px;
+    }
+
+    .underwriting-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      padding: 20px;
+      background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+      border: 1px solid #0ea5e9;
+      border-radius: 12px;
+      margin-bottom: 25px;
+    }
+
+    .notice-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .notice-text {
+      color: #0c4a6e;
+      line-height: 1.5;
+    }
+
+    .underwriting-form {
+      display: flex;
+      flex-direction: column;
+      gap: 25px;
+    }
+
+    .form-section {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      background: #fafbfc;
+    }
+
+    .form-section h4 {
+      margin: 0 0 15px 0;
+      color: #1e293b;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group label {
+      font-weight: 500;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .form-group input {
+      padding: 12px 15px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-group input[type="date"] {
+      cursor: pointer;
+    }
+
+    .checks-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      padding: 12px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      background: white;
+      border: 1px solid #e2e8f0;
+    }
+
+    .check-item:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .check-item input[type="checkbox"] {
+      display: none;
+    }
+
+    .checkmark {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #cbd5e1;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      background: white;
+    }
+
+    .check-item input:checked + .checkmark {
+      background: #10b981;
+      border-color: #10b981;
+    }
+
+    .check-item input:checked + .checkmark::after {
+      content: '✓';
+      color: white;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    .check-label {
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 15px;
+      justify-content: flex-end;
+      padding: 25px 30px;
+      border-top: 1px solid #e2e8f0;
+      background: #fafbfc;
+      border-radius: 0 0 20px 20px;
+    }
+
+    /* Стили для вкладок */
+    .tabs-container {
+      margin-top: 20px;
+    }
+
+    .tab-buttons {
+      display: flex;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .tab-buttons::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      color: #64748b;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tab-btn:hover {
+      color: #3b82f6;
+      background: #f0f9ff;
+    }
+
+    .tab-btn.active {
+      color: #3b82f6;
+      border-bottom-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 20px 0;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .tab-description {
+      margin-bottom: 20px;
+    }
+
+    .tab-description h4 {
+      margin: 0 0 8px 0;
+      color: #1e293b;
+      font-size: 1.2rem;
+    }
+
+    .tab-description p {
+      margin: 0;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .tab-actions {
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .btn-check {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-check:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-check:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .file-hint {
+      margin-top: 8px;
+    }
+
+    .file-hint small {
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .check-results {
+      margin-top: 20px;
+      min-height: 50px;
+    }
+
+    .result-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      transition: all 0.3s ease;
+    }
+
+    .result-item:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-item.success {
+      background: linear-gradient(135deg, #f0fdf4, #ffffff);
+      border-color: #22c55e;
+    }
+
+    .result-item.warning {
+      background: linear-gradient(135deg, #fffbeb, #ffffff);
+      border-color: #f59e0b;
+    }
+
+    .result-item.error {
+      background: linear-gradient(135deg, #fef2f2, #ffffff);
+      border-color: #ef4444;
+    }
+
+    .result-item.loading {
+      background: linear-gradient(135deg, #f0f9ff, #ffffff);
+      border-color: #3b82f6;
+    }
+
+    .result-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .result-content {
+      flex: 1;
+    }
+
+    .result-content strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 6px;
+    }
+
+    .result-content p {
+      margin: 4px 0;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .result-content .risk-level {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .result-content .risk-low {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .result-content .risk-medium {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .result-content .risk-high {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    /* Мобильная адаптация */
+    @media (max-width: 768px) {
+      .modal-content {
+        width: 95%;
+        margin: 20px;
+      }
+
+      .tab-buttons {
+        gap: 0;
+      }
+
+      .tab-btn {
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-footer {
+        flex-direction: column;
+      }
+
+      .modal-footer button {
+        width: 100%;
+      }
+
+      .result-item {
+        padding: 12px;
+      }
+    }
+
+    /* Стили для результатов андеррайтинга */
+    .underwriting-results {
+      margin-top: 20px;
+    }
+
+    .underwriting-results h3 {
+      color: #1e293b;
+      margin-bottom: 20px;
+      font-size: 1.5rem;
+    }
+
+    .result-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: white;
+    }
+
+    .result-item.success {
+      background: linear-gradient(135deg, #f0fdf4, #ffffff);
+      border-color: #22c55e;
+    }
+
+    .result-item.warning {
+      background: linear-gradient(135deg, #fffbeb, #ffffff);
+      border-color: #f59e0b;
+    }
+
+    .result-item.error {
+      background: linear-gradient(135deg, #fef2f2, #ffffff);
+      border-color: #ef4444;
+    }
+
+    .result-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .result-content strong {
+      display: block;
+      color: #1e293b;
+      margin-bottom: 8px;
+      font-size: 1.1rem;
+    }
+
+    .result-content p {
+      margin: 5px 0;
+      color: #475569;
+      line-height: 1.5;
+    }
+
+    .result-content em {
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .underwriting-disclaimer {
+      margin-top: 30px;
+      padding: 20px;
+      background: linear-gradient(135deg, #fef3c7, #ffffff);
+      border: 1px solid #f59e0b;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .underwriting-disclaimer p {
+      margin: 0;
+      color: #92400e;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+
+  <!-- Подключаем данные -->
+  <script defer src="config_banks.js?v=13"></script>
+  <script defer src="tariffs_life.js?v=12"></script>
+  <script defer src="tariffs_property.js?v=12"></script>
+  <script defer src="tariffs_ifl.js?v=12"></script>
+
+  <!-- Логика -->
+  <script defer src="parser.js?v=15"></script>
+  <script defer src="calculator_v2.js?v=20"></script>
+  <script defer src="installment_calculator.js?v=4"></script>
+  <script src="openai.js?v=14"></script>
+</head>
+
+<body>
+  <!-- Шапка -->
+  <header class="hero-section">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="hero-logo">
+        <div class="logo-icon">🏛️</div>
+        <h1 class="hero-title">ИНГОССТРАХ</h1>
+        <div class="hero-subtitle">Многофункциональный продукт</div>
+      </div>
+      <div class="hero-description">
+        <p>Калькулятор стоимости ипотечного страхования</p>
+        <p class="hero-accent">Точный расчет • Мгновенный результат • Профессиональный подход</p>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <div class="stat-number">23</div>
+          <div class="stat-label">Банков</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">100%</div>
+          <div class="stat-label">Точность</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-number">24/7</div>
+          <div class="stat-label">Доступность</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-decoration">
+      <div class="decoration-element"></div>
+      <div class="decoration-element"></div>
+      <div class="decoration-element"></div>
+    </div>
+  </header>
+
+  <!-- Основной контент -->
+  <main class="main-content">
+    <div class="container">
+
+      <!-- Раздел расчета -->
+      <section class="calculation-section">
+        <div class="calculation-wrapper">
+          <div class="calculation-header">
+            <h2 class="section-title">💎 Расчет стоимости страхования</h2>
+            <p class="section-subtitle">Введите данные клиента для мгновенного расчета стоимости страхования</p>
+          </div>
+
+
+          <div class="calculation-card">
+            <div class="card-header">
+              <div class="card-icon">📊</div>
+              <h3>Калькулятор страхования</h3>
+            </div>
+
+            <!-- Поле ввода -->
+            <div class="input-group">
+              <label for="client-input" class="input-label">Данные клиента</label>
+              <div class="input-wrapper">
+                <textarea
+                  id="client-input"
+                  placeholder="Пример: ВТБ ост 3000000 муж 15.08.1985 дом кирпич"
+                  rows="3"
+                  maxlength="1000"
+                ></textarea>
+                <div class="input-decoration"></div>
+              </div>
+              <div class="input-help">
+                <span class="help-icon">💡</span>
+                Укажите: банк, ОСЗ, данные заемщика, тип объекта
+              </div>
+            </div>
+
+            <!-- Кнопки -->
+            <div class="button-group">
+              <button id="calculate-btn" class="btn-primary">
+                <span class="btn-icon">⚡</span>
+                <span>Рассчитать стоимость</span>
+              </button>
+              <button id="clear-btn" class="btn-secondary">
+                <span class="btn-icon">🗑️</span>
+                <span>Очистить</span>
+              </button>
+              <button id="underwriting-btn" class="btn-underwriting" onclick="openUnderwritingModal()">
+                <span class="btn-icon">🔍</span>
+                <span>Андеррайтинг</span>
+              </button>
+            </div>
+
+            <!-- Описание андеррайтинга -->
+            <div class="underwriting-info">
+              <p>🔍 <strong>Андеррайтинг</strong> - бесплатная оценка рисков для принятия решения о страховании</p>
+            </div>
+          </div>
+
+          <!-- Результаты расчета -->
+          <div id="results-section" class="results-section" style="display: none;">
+            <div class="results-card">
+              <div class="results-header">
+                <div class="results-icon">💰</div>
+                <h3>Результаты расчета</h3>
+              </div>
+              <div id="results-content" class="results-content">
+                <!-- Здесь будут отображаться результаты -->
+              </div>
+              <div class="results-decoration">
+                <div class="decoration-line"></div>
+                <div class="decoration-dots"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Разделитель -->
+      <div class="section-divider"></div>
+
+      <!-- Информация о банках -->
+      <section class="banks-section">
+        <div class="banks-wrapper">
+          <div class="banks-header">
+            <h3 class="section-title-mini">🏦 Поддерживаемые банки</h3>
+            <p class="section-description">Работаем со всеми ведущими банками России</p>
+          </div>
+          <div class="banks-grid">
+            <div class="bank-item">Абсолют Банк</div>
+            <div class="bank-item">Ак Барс</div>
+            <div class="bank-item">Альфа Банк</div>
+            <div class="bank-item">Банк СПБ</div>
+            <div class="bank-item">ВТБ</div>
+            <div class="bank-item">Газпромбанк</div>
+            <div class="bank-item">Дом.РФ</div>
+            <div class="bank-item">Зенит</div>
+            <div class="bank-item">ИТБ / ТКБ</div>
+            <div class="bank-item">Металлинвест</div>
+            <div class="bank-item">МКБ</div>
+            <div class="bank-item">МТС Банк</div>
+            <div class="bank-item">ПСБ (Промсвязьбанк)</div>
+            <div class="bank-item">Райффайзенбанк</div>
+            <div class="bank-item">РСХБ</div>
+            <div class="bank-item">Совкомбанк</div>
+            <div class="bank-item">Сбербанк</div>
+            <div class="bank-item">Т-Банк / Росбанк</div>
+            <div class="bank-item">Тимер Банк</div>
+            <div class="bank-item">УБРИР</div>
+            <div class="bank-item">Уралсиб</div>
+            <div class="bank-item">Энергобанк</div>
+            <div class="bank-item">Юникредит Банк</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Разделитель -->
+      <div class="section-divider"></div>
+
+      <!-- Формат ввода -->
+      <section class="format-section">
+        <div class="format-wrapper">
+          <div class="format-header">
+            <h3 class="section-title-mini">📋 Формат ввода данных</h3>
+          </div>
+          <div class="format-grid">
+            <div class="format-item">
+              <div class="format-icon">🏛️</div>
+              <div class="format-content">
+                <strong>Банк</strong>
+                <p>Сбербанк, ВТБ, Дом.РФ и др.</p>
+              </div>
+            </div>
+            <div class="format-item">
+              <div class="format-icon">💰</div>
+              <div class="format-content">
+                <strong>ОСЗ</strong>
+                <p>Остаток ссудной задолженности</p>
+              </div>
+            </div>
+            <div class="format-item">
+              <div class="format-icon">👤</div>
+              <div class="format-content">
+                <strong>Заемщик</strong>
+                <p>муж/жен DD.MM.YYYY</p>
+              </div>
+            </div>
+            <div class="format-item">
+              <div class="format-icon">🏠</div>
+              <div class="format-content">
+                <strong>Объект</strong>
+                <p>квартира, дом кирпич/дерево</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Разделитель -->
+      <div class="section-divider"></div>
+
+      <!-- Преимущества -->
+      <section class="advantages-section">
+        <div class="advantages-wrapper">
+          <div class="advantages-header">
+            <h3 class="section-title-mini">✨ Преимущества</h3>
+          </div>
+          <div class="advantages-grid">
+            <div class="advantage-item">
+              <div class="advantage-icon">⚡</div>
+              <h4>Мгновенный расчет</h4>
+              <p>Результат за секунды</p>
+            </div>
+            <div class="advantage-item">
+              <div class="advantage-icon">🎯</div>
+              <h4>Высокая точность</h4>
+              <p>Профессиональные тарифы</p>
+            </div>
+            <div class="advantage-item">
+              <div class="advantage-icon">🛡️</div>
+              <h4>Надежность</h4>
+              <p>Проверенные алгоритмы</p>
+            </div>
+            <div class="advantage-item">
+              <div class="advantage-icon">📱</div>
+              <h4>Удобство</h4>
+              <p>Работает везде</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Модальное окно Андеррайтинга -->
+  <div id="underwriting-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔍 Андеррайтинг - Оценка рисков</h3>
+        <button class="modal-close" onclick="closeUnderwritingModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="underwriting-notice">
+          <div class="notice-icon">ℹ️</div>
+          <div class="notice-text">
+            <strong>Бесплатная проверка рисков</strong><br>
+            Помогает оценить вероятность одобрения страхования жизни и имущества
+          </div>
+        </div>
+
+        <!-- Вкладки -->
+        <div class="tabs-container">
+          <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="health">🏥 Мед. андеррайтинг</button>
+            <button class="tab-btn" data-tab="wear">🏢 Износ здания</button>
+            <button class="tab-btn" data-tab="egrn">🏠 ЕГРН</button>
+            <button class="tab-btn" data-tab="bankruptcy">⚖️ Банкротство</button>
+            <button class="tab-btn" data-tab="fssp">🚔 ФССП</button>
+          </div>
+
+          <!-- Содержимое вкладок -->
+          <div class="tab-content active" id="health-content">
+            <div class="tab-description">
+              <h4>🏥 Медицинский андеррайтинг</h4>
+              <p>Оценка рисков по индексу массы тела (ИМТ) и возрасту заемщика</p>
+            </div>
+
+            <div class="form-section">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="health-birth">Дата рождения:</label>
+                  <input type="date" id="health-birth" required>
+                </div>
+                <div class="form-group">
+                  <label for="health-height">Рост (см):</label>
+                  <input type="number" id="health-height" placeholder="175" min="120" max="220" required>
+                </div>
+                <div class="form-group">
+                  <label for="health-weight">Вес (кг):</label>
+                  <input type="number" id="health-weight" placeholder="70" min="30" max="200" required>
+                </div>
+              </div>
+            </div>
+            <div class="tab-actions">
+              <button class="btn-check" id="health-calculate-btn">
+                <span class="btn-icon">📊</span>
+                <span>Рассчитать андеррайтинг</span>
+              </button>
+            </div>
+            <div id="health-results" class="check-results"></div>
+          </div>
+
+          <div class="tab-content" id="wear-content">
+            <div class="tab-description">
+              <h4>🏢 Проверка износа здания</h4>
+              <p>Определение процента износа конструкций здания и даты последней оценки</p>
+            </div>
+
+            <div class="form-section">
+              <div class="form-group">
+                <label for="wear-city">Город:</label>
+                <input type="text" id="wear-city" placeholder="Москва" required>
+              </div>
+              <div class="form-group">
+                <label for="wear-street">Улица:</label>
+                <input type="text" id="wear-street" placeholder="Ленина" required>
+              </div>
+              <div class="form-group">
+                <label for="wear-house">Дом:</label>
+                <input type="text" id="wear-house" placeholder="15" required>
+              </div>
+              <div class="form-group">
+                <label for="wear-percent">Износ здания (%):</label>
+                <input type="number" id="wear-percent" placeholder="25" min="0" max="100" step="0.1" required>
+                <div class="field-hint">
+                  <small style="color: #666;">Введите процент износа здания (0-100). Данные можно получить на сайте dom.mingkh.ru</small>
+                </div>
+              </div>
+            </div>
+            <div class="tab-actions">
+              <button class="btn-check" id="wear-calculate-btn">
+                <span class="btn-icon">📊</span>
+                <span>Рассчитать риск</span>
+              </button>
+            </div>
+            <div id="wear-results" class="check-results"></div>
+          </div>
+
+          <div class="tab-content" id="egrn-content">
+            <div class="tab-description">
+              <h4>🏠 Проверка по ЕГРН</h4>
+              <p>Анализ выписки ЕГРН на наличие ограничений прав, обременений и решений об изъятии</p>
+            </div>
+            <div class="form-section">
+              <div class="form-group">
+                <label for="egrn-file">Файл выписки ЕГРН (.xml):</label>
+                <input type="file" id="egrn-file" accept=".xml" required>
+                <div class="file-hint">
+                  <small>Загрузите XML файл выписки из Росреестра</small>
+                </div>
+              </div>
+            </div>
+            <div class="tab-actions">
+              <button class="btn-check" onclick="checkEGRN()">
+                <span class="btn-icon">📋</span>
+                <span>Анализировать ЕГРН</span>
+              </button>
+            </div>
+            <div id="egrn-results" class="check-results"></div>
+          </div>
+
+          <div class="tab-content" id="bankruptcy-content">
+            <div class="tab-description">
+              <h4>⚖️ Проверка на банкротство</h4>
+              <p>Поиск дел о банкротстве по ФИО в ЕФРСБ (Едином федеральном реестре сведений о банкротстве)</p>
+            </div>
+            <div class="form-section">
+              <div class="form-group">
+                <label for="bankruptcy-fio">ФИО полностью:</label>
+                <input type="text" id="bankruptcy-fio" placeholder="Иванов Иван Иванович" required>
+              </div>
+            </div>
+            <div class="tab-actions">
+              <button class="btn-check" onclick="checkBankruptcy()">
+                <span class="btn-icon">⚖️</span>
+                <span>Проверить банкротство</span>
+              </button>
+            </div>
+            <div id="bankruptcy-results" class="check-results"></div>
+          </div>
+
+          <div class="tab-content" id="fssp-content">
+            <div class="tab-description">
+              <h4>🚔 Проверка по ФССП</h4>
+              <p>Поиск исполнительных производств и задолженностей в Федеральной службе судебных приставов</p>
+            </div>
+            <div class="form-section">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fssp-fio">ФИО полностью:</label>
+                  <input type="text" id="fssp-fio" placeholder="Иванов Иван Иванович" required>
+                </div>
+                <div class="form-group">
+                  <label for="fssp-birth">Дата рождения:</label>
+                  <input type="date" id="fssp-birth" required>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="fssp-region">Субъект РФ:</label>
+                <select id="fssp-region" required>
+                  <option value="">Выберите регион</option>
+                  <option value="77">г. Москва</option>
+                  <option value="78">г. Санкт-Петербург</option>
+                  <option value="50">Московская область</option>
+                  <option value="16">Республика Татарстан</option>
+                  <option value="01">Республика Адыгея</option>
+                  <option value="04">Республика Алтай</option>
+                  <option value="02">Республика Башкортостан</option>
+                  <option value="03">Республика Бурятия</option>
+                  <option value="05">Республика Дагестан</option>
+                  <option value="06">Республика Ингушетия</option>
+                  <option value="07">Кабардино-Балкарская Республика</option>
+                  <option value="08">Республика Калмыкия</option>
+                  <option value="09">Карачаево-Черкесская Республика</option>
+                  <option value="10">Республика Карелия</option>
+                  <option value="11">Республика Коми</option>
+                  <option value="12">Республика Марий Эл</option>
+                  <option value="13">Республика Мордовия</option>
+                  <option value="14">Республика Саха (Якутия)</option>
+                  <option value="15">Республика Северная Осетия - Алания</option>
+                  <option value="17">Республика Тыва</option>
+                  <option value="18">Удмуртская Республика</option>
+                  <option value="19">Республика Хакасия</option>
+                  <option value="20">Чеченская Республика</option>
+                  <option value="21">Чувашская Республика</option>
+                  <option value="22">Алтайский край</option>
+                  <option value="23">Краснодарский край</option>
+                  <option value="24">Красноярский край</option>
+                  <option value="25">Приморский край</option>
+                  <option value="26">Ставропольский край</option>
+                  <option value="27">Хабаровский край</option>
+                  <option value="28">Амурская область</option>
+                  <option value="29">Архангельская область</option>
+                  <option value="30">Астраханская область</option>
+                  <option value="31">Белгородская область</option>
+                  <option value="32">Брянская область</option>
+                  <option value="33">Владимирская область</option>
+                  <option value="34">Волгоградская область</option>
+                  <option value="35">Вологодская область</option>
+                  <option value="36">Воронежская область</option>
+                  <option value="37">Ивановская область</option>
+                  <option value="38">Иркутская область</option>
+                  <option value="39">Калининградская область</option>
+                  <option value="40">Калужская область</option>
+                  <option value="41">Камчатский край</option>
+                  <option value="42">Кемеровская область</option>
+                  <option value="43">Кировская область</option>
+                  <option value="44">Костромская область</option>
+                  <option value="45">Курганская область</option>
+                  <option value="46">Курская область</option>
+                  <option value="47">Ленинградская область</option>
+                  <option value="48">Липецкая область</option>
+                  <option value="49">Магаданская область</option>
+                  <option value="51">Мурманская область</option>
+                  <option value="52">Нижегородская область</option>
+                  <option value="53">Новгородская область</option>
+                  <option value="54">Новосибирская область</option>
+                  <option value="55">Омская область</option>
+                  <option value="56">Оренбургская область</option>
+                  <option value="57">Орловская область</option>
+                  <option value="58">Пензенская область</option>
+                  <option value="59">Пермский край</option>
+                  <option value="60">Псковская область</option>
+                  <option value="61">Ростовская область</option>
+                  <option value="62">Рязанская область</option>
+                  <option value="63">Самарская область</option>
+                  <option value="64">Саратовская область</option>
+                  <option value="65">Сахалинская область</option>
+                  <option value="66">Свердловская область</option>
+                  <option value="67">Смоленская область</option>
+                  <option value="68">Тамбовская область</option>
+                  <option value="69">Тверская область</option>
+                  <option value="70">Томская область</option>
+                  <option value="71">Тульская область</option>
+                  <option value="72">Тюменская область</option>
+                  <option value="73">Ульяновская область</option>
+                  <option value="74">Челябинская область</option>
+                  <option value="75">Забайкальский край</option>
+                  <option value="76">Ярославская область</option>
+                  <option value="79">Еврейская автономная область</option>
+                  <option value="80">Забайкальский край</option>
+                  <option value="81">Пермский край</option>
+                  <option value="82">Республика Крым</option>
+                  <option value="83">г. Севастополь</option>
+                  <option value="84">Ненецкий автономный округ</option>
+                  <option value="85">Ханты-Мансийский автономный округ - Югра</option>
+                  <option value="86">Чукотский автономный округ</option>
+                  <option value="87">Ямало-Ненецкий автономный округ</option>
+                </select>
+              </div>
+            </div>
+            <div class="tab-actions">
+              <button class="btn-check" onclick="checkFSSP()">
+                <span class="btn-icon">🚔</span>
+                <span>Проверить ФССП</span>
+              </button>
+            </div>
+            <div id="fssp-results" class="check-results"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeUnderwritingModal()">
+          <span>Закрыть</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Подвал -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="footer-logo">
+        <div class="footer-icon">🏛️</div>
+        <span>Ингосстрах</span>
+      </div>
+      <div class="footer-text">
+        <p>&copy; 2025 Ингосстрах - ипотечный парсер страхования. Все права защищены.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Инициализация интерфейса
+    document.addEventListener('DOMContentLoaded', function() {
+      const clientInput = document.getElementById('client-input');
+      const calculateBtn = document.getElementById('calculate-btn');
+      const clearBtn = document.getElementById('clear-btn');
+      const resultsSection = document.getElementById('results-section');
+      const resultsContent = document.getElementById('results-content');
+
+      // Список банков теперь статический
+
+      // Обработчик кнопки расчета
+      calculateBtn.addEventListener('click', async function() {
+        const message = clientInput.value.trim();
+
+        if (!message) {
+          showError('Введите данные для расчета');
+          return;
+        }
+
+        // Показываем индикатор загрузки
+        calculateBtn.disabled = true;
+        calculateBtn.innerHTML = '<span class="btn-icon">⏳</span><span>Рассчитываем...</span>';
+
+        try {
+          const result = await processClientRequest(message);
+
+          // Показываем результаты
+          resultsContent.innerHTML = result;
+          resultsSection.style.display = 'block';
+
+          // Прокручиваем к результатам
+          resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+        } catch (error) {
+          console.error('Ошибка:', error);
+          showError('Произошла ошибка при расчете. Проверьте введенные данные.');
+        } finally {
+          // Возвращаем кнопку в исходное состояние
+          calculateBtn.disabled = false;
+          calculateBtn.innerHTML = '<span class="btn-icon">⚡</span><span>Рассчитать стоимость</span>';
+        }
+      });
+
+      // Обработчик кнопки очистки
+      clearBtn.addEventListener('click', function() {
+        clientInput.value = '';
+        resultsSection.style.display = 'none';
+        resultsContent.innerHTML = '';
+        clientInput.focus();
+      });
+
+      // Обработчик Enter в поле ввода
+      clientInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          calculateBtn.click();
+        }
+      });
+
+      // Функция показа ошибок
+      function showError(message) {
+        resultsContent.innerHTML = `<div class="error-message">
+          <div class="error-icon">❌</div>
+          <div class="error-text">${message}</div>
+        </div>`;
+        resultsSection.style.display = 'block';
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+      }
+
+
+      // Фокус на поле ввода при загрузке
+      clientInput.focus();
+
+      // Обработчики для вкладок андеррайтинга
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const tabId = this.getAttribute('data-tab');
+          switchTab(tabId);
+        });
+      });
+
+      // Закрытие модального окна при клике вне его
+      const modal = document.getElementById('underwriting-modal');
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === this) {
+            closeUnderwritingModal();
+          }
+        });
+      }
+
+      // Закрытие при нажатии Escape
+      // Обработчик для кнопки медицинского андеррайтинга
+      const healthCalculateBtn = document.getElementById('health-calculate-btn');
+      if (healthCalculateBtn) {
+        healthCalculateBtn.addEventListener('click', function() {
+          calculateHealthUnderwriting();
+        });
+      }
+
+      // Обработчик для кнопки расчета износа здания
+      const wearCalculateBtn = document.getElementById('wear-calculate-btn');
+      if (wearCalculateBtn) {
+        wearCalculateBtn.addEventListener('click', function() {
+          calculateBuildingRisk();
+        });
+      }
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.style.display === 'flex') {
+          closeUnderwritingModal();
+        }
+      });
+
+      // Переключение вкладок
+      function switchTab(tabId) {
+        // Скрыть все контенты
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+
+        // Убрать активный класс со всех кнопок
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+
+        // Показать выбранный контент
+        document.getElementById(tabId + '-content').classList.add('active');
+
+        // Активировать кнопку
+        document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+
+        // Очистить результаты предыдущей проверки
+        clearAllResults();
+      }
+
+
+      // Очистка всех результатов
+      function clearAllResults() {
+        document.getElementById('health-results').innerHTML = '';
+        document.getElementById('wear-results').innerHTML = '';
+        document.getElementById('egrn-results').innerHTML = '';
+        document.getElementById('bankruptcy-results').innerHTML = '';
+        document.getElementById('fssp-results').innerHTML = '';
+      }
+
+      // Показать результат проверки
+      function showResult(containerId, result) {
+        const container = document.getElementById(containerId);
+
+        let riskClass = 'success';
+        let riskLevel = 'risk-low';
+
+        if (result.risk === 'medium') {
+          riskClass = 'warning';
+          riskLevel = 'risk-medium';
+        } else if (result.risk === 'high') {
+          riskClass = 'error';
+          riskLevel = 'risk-high';
+        }
+
+        if (result.error) {
+          riskClass = 'error';
+        }
+
+        const html = `
+          <div class="result-item ${riskClass}">
+            <div class="result-icon">${result.icon || '📊'}</div>
+            <div class="result-content">
+              <strong>${result.title}</strong>
+              <p>${result.message}</p>
+              ${result.details ? `<p>${result.details}</p>` : ''}
+              <span class="risk-level ${riskLevel}">${result.riskLevel || 'Низкий риск'}</span>
+            </div>
+          </div>
+        `;
+
+        container.innerHTML = html;
+      }
+
+      // Показать состояние загрузки
+      function showLoading(containerId, message) {
+        const container = document.getElementById(containerId);
+        const html = `
+          <div class="result-item loading">
+            <div class="result-icon">⏳</div>
+            <div class="result-content">
+              <strong>Проверка выполняется...</strong>
+              <p>${message}</p>
+            </div>
+          </div>
+        `;
+        container.innerHTML = html;
+      }
+
+
+      // Проверка ЕГРН файла
+      async function checkEGRN() {
+        const fileInput = document.getElementById('egrn-file');
+        const file = fileInput.files[0];
+
+        if (!file) {
+          showResult('egrn-results', {
+            icon: '⚠️',
+            title: 'Файл не выбран',
+            message: 'Выберите XML файл выписки ЕГРН',
+            risk: 'error',
+            riskLevel: 'Ошибка'
+          });
+          return;
+        }
+
+        showLoading('egrn-results', 'Анализируем файл выписки ЕГРН...');
+
+        try {
+          const result = await analyzeEGRNFile(file);
+          showResult('egrn-results', result);
+        } catch (error) {
+          showResult('egrn-results', {
+            icon: '❌',
+            title: 'Ошибка анализа файла',
+            message: 'Не удалось обработать файл ЕГРН',
+            details: error.message,
+            risk: 'error',
+            riskLevel: 'Ошибка'
+          });
+        }
+      }
+
+      // Анализ файла ЕГРН
+      function analyzeEGRNFile(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = function(e) {
+            try {
+              const xmlText = e.target.result;
+
+              // Парсим XML
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+              // Проверяем на ошибки парсинга
+              const parseError = xmlDoc.querySelector('parsererror');
+              if (parseError) {
+                throw new Error('Некорректный формат XML файла');
+              }
+
+              // Ищем ограничения и обременения
+              const restrictions = xmlDoc.querySelectorAll('Restriction, restriction');
+              const encumbrances = xmlDoc.querySelectorAll('Encumbrance, encumbrance');
+              const seizures = xmlDoc.querySelectorAll('*[contains(text(), "изъятие")], *[contains(text(), "seizure")]');
+
+              let issues = [];
+              let risk = 'normal';
+              let riskLevel = 'Низкий риск';
+              let message = 'Файл ЕГРН успешно проанализирован';
+
+              if (restrictions.length > 0) {
+                issues.push(`Найдено ограничений прав: ${restrictions.length}`);
+                risk = 'high';
+                riskLevel = 'Высокий риск';
+              }
+
+              if (encumbrances.length > 0) {
+                issues.push(`Найдены обременения: ${encumbrances.length}`);
+                risk = 'high';
+                riskLevel = 'Высокий риск';
+              }
+
+              if (seizures.length > 0) {
+                issues.push('Есть решения об изъятии объекта');
+                risk = 'high';
+                riskLevel = 'Высокий риск';
+              }
+
+              if (issues.length === 0) {
+                message += '. Ограничений и обременений не найдено.';
+              } else {
+                message += '. Обнаружены проблемы: ' + issues.join(', ') + '.';
+              }
+
+              resolve({
+                icon: '📋',
+                title: 'Результат анализа ЕГРН',
+                message: message,
+                risk: risk,
+                riskLevel: riskLevel
+              });
+
+            } catch (error) {
+              reject(error);
+            }
+          };
+
+          reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+          reader.readAsText(file);
+        });
+      }
+
+      // Проверка банкротства
+      async function checkBankruptcy() {
+        const fio = document.getElementById('bankruptcy-fio').value.trim();
+
+        if (!fio) {
+          showResult('bankruptcy-results', {
+            icon: '⚠️',
+            title: 'ФИО не указано',
+            message: 'Введите полное ФИО для проверки',
+            risk: 'error',
+            riskLevel: 'Ошибка'
+          });
+          return;
+        }
+
+        showLoading('bankruptcy-results', 'Проверяем данные в ЕФРСБ...');
+
+        try {
+          // Имитация проверки (в реальности - запрос к bankrot.fedresurs.ru)
+          await new Promise(resolve => setTimeout(resolve, 2500));
+
+          // Демо-результат (в продакшене - реальный парсинг)
+          const hasBankruptcy = Math.random() > 0.8; // 20% шанс найти банкротство
+
+          if (hasBankruptcy) {
+            showResult('bankruptcy-results', {
+              icon: '⚖️',
+              title: 'Результат проверки банкротства',
+              message: 'Найдено дело о банкротстве. Требуется дополнительная проверка.',
+              details: 'Рекомендуется обратиться к финансовому консультанту',
+              risk: 'high',
+              riskLevel: 'Высокий риск'
+            });
+          } else {
+            showResult('bankruptcy-results', {
+              icon: '✅',
+              title: 'Результат проверки банкротства',
+              message: 'Дела о банкротстве не найдены',
+              risk: 'normal',
+              riskLevel: 'Низкий риск'
+            });
+          }
+
+        } catch (error) {
+          showResult('bankruptcy-results', {
+            icon: '❌',
+            title: 'Ошибка проверки',
+            message: 'Не удалось выполнить проверку банкротства',
+            details: error.message,
+            risk: 'error',
+            riskLevel: 'Ошибка'
+          });
+        }
+      }
+
+      // Проверка ФССП
+      async function checkFSSP() {
+        const fio = document.getElementById('fssp-fio').value.trim();
+        const birthDate = document.getElementById('fssp-birth').value;
+        const region = document.getElementById('fssp-region').value;
+
+        if (!fio || !birthDate || !region) {
+          showResult('fssp-results', {
+            icon: '⚠️',
+            title: 'Недостаточно данных',
+            message: 'Заполните все поля: ФИО, дата рождения и регион',
+            risk: 'error',
+            riskLevel: 'Ошибка'
+          });
+          return;
+        }
+
+        showLoading('fssp-results', 'Проверяем данные в ФССП...');
+
+        try {
+          // Имитация проверки (в реальности - парсинг fssp.gov.ru)
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          // Демо-результат (в продакшене - реальный парсинг)
+          const hasDebts = Math.random() > 0.7; // 30% шанс найти долги
+          const debtAmount = hasDebts ? Math.floor(Math.random() * 500000) + 10000 : 0;
+
+          if (hasDebts) {
+            showResult('fssp-results', {
+              icon: '🚔',
+              title: 'Результат проверки ФССП',
+              message: `Найдены исполнительные производства на сумму ${debtAmount.toLocaleString('ru-RU')} ₽`,
+              details: 'Требуется погашение задолженности перед страхованием',
+              risk: 'high',
+              riskLevel: 'Высокий риск'
+            });
+          } else {
+            showResult('fssp-results', {
+              icon: '✅',
+              title: 'Результат проверки ФССП',
+              message: 'Исполнительные производства не найдены',
+              risk: 'normal',
+              riskLevel: 'Низкий риск'
+            });
+          }
+
+        } catch (error) {
+          showResult('fssp-results', {
+            icon: '❌',
+            title: 'Ошибка проверки',
+            message: 'Не удалось выполнить проверку ФССП',
+            details: error.message,
+            risk: 'error',
+            riskLevel: 'Ошибка'
+          });
+        }
+      }
+
+
+    // Медицинский андеррайтинг (глобальная функция)
+    async function calculateHealthUnderwriting() {
+      const birthDate = document.getElementById('health-birth').value;
+      const height = parseInt(document.getElementById('health-height').value);
+      const weight = parseInt(document.getElementById('health-weight').value);
+
+      if (!birthDate || !height || !weight) {
+        showResult('health-results', {
+          icon: '⚠️',
+          title: 'Недостаточно данных',
+          message: 'Заполните все поля: дата рождения, рост и вес',
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+        return;
+      }
+
+      showLoading('health-results', 'Выполняем медицинский андеррайтинг...');
+
+      try {
+        // Рассчитываем возраст
+        const age = calculateAge(birthDate);
+
+        // Рассчитываем ИМТ
+        const bmi = weight / ((height / 100) ** 2);
+
+        // Получаем коэффициент андеррайтинга из таблицы
+        const underwritingFactor = getUnderwritingFactor(age, height, weight);
+
+        // Определяем результат
+        let result, risk, riskLevel, message, recommendation;
+
+        if (underwritingFactor === 'МЕДО') {
+          result = 'МЕДО';
+          risk = 'high';
+          riskLevel = 'Требуется медобследование';
+          message = 'Необходимо пройти медицинское обследование';
+          recommendation = 'Рекомендуется обратиться к врачу для дополнительного обследования перед страхованием';
+        } else if (underwritingFactor === 1.25) {
+          result = '+25% к тарифу';
+          risk = 'medium';
+          riskLevel = 'Повышенный тариф';
+          message = 'Применяется надбавка 25% к базовому тарифу';
+          recommendation = 'Тариф будет увеличен на 25% из-за повышенного риска';
+        } else {
+          result = 'Стандартный тариф';
+          risk = 'normal';
+          riskLevel = 'Стандартный риск';
+          message = 'Применяется стандартный тариф страхования';
+          recommendation = 'Риск в допустимых пределах, стандартные условия страхования';
+        }
+
+        showResult('health-results', {
+          icon: result === 'МЕДО' ? '🏥' : result === '+25% к тарифу' ? '⚠️' : '✅',
+          title: 'Результат медицинского андеррайтинга',
+          message: `Возраст: ${age} лет\nИМТ: ${bmi.toFixed(1)}\nРезультат: ${result}\n\n${message}`,
+          details: recommendation,
+          risk: risk,
+          riskLevel: riskLevel
+        });
+
+      } catch (error) {
+        showResult('health-results', {
+          icon: '❌',
+          title: 'Ошибка расчета',
+          message: 'Не удалось выполнить медицинский андеррайтинг',
+          details: error.message,
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+      }
+    }
+
+    // Расчет возраста
+    function calculateAge(birthDate) {
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+
+      return age;
+    }
+
+    // ===== ПОЛНАЯ ИСПРАВЛЕННАЯ ТАБЛИЦА МЕДИКО-СОЦИАЛЬНОЙ ЭКСПЕРТИЗЫ =====
+    // Весовые категории: <39, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, >140
+
+    // Глобальная таблица андеррайтинга (вынесена из DOMContentLoaded для доступности)
+    window.UNDERWRITING_TABLE = {
+      140: {
+        "16-29": [1.25, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": [1.25, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      145: {
+        "16-29": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      150: {
+        "16-29": ["МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      155: {
+        "16-29": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      160: {
+        "16-29": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      165: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      170: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+       175: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      180: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      185: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      190: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      },
+      195: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"]
+      },
+      200: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"]
+      },
+      205: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, "МЕДО", "МЕДО", "МЕДО"]
+      },
+      210: {
+        "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+        "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+      }
+    };
+
+    // ===== КЛАСС ДЛЯ РАБОТЫ С HouseScore API =====
+
+    class HouseScoreAPI {
+      constructor(apiKey = '4qQr9LmOgd0ZXuoQr7wW71DdJ9bOeIDoSfaLvyi083de24c1') {
+        this.apiKey = apiKey;
+        this.baseUrl = 'https://api.housescore.ru';
+        // Используем CORS прокси для обхода CORS ограничений
+        this.corsProxy = 'https://cors-anywhere.herokuapp.com/';
+      }
+
+      /**
+       * Поиск дома по адресу (город, улица, номер)
+       */
+      async searchHouse(city, street, buildingNumber) {
+        try {
+          const streetSearch = await this.searchStreet(city, street);
+
+          if (!streetSearch || streetSearch.length === 0) {
+            return {
+              success: false,
+              error: 'Улица не найдена в базе данных'
+            };
+          }
+
+          const streetFiasGuid = streetSearch[0].fias_guid;
+          const houses = await this.getHousesByStreet(streetFiasGuid);
+
+          if (!houses || houses.length === 0) {
+            return {
+              success: false,
+              error: 'Дома не найдены на указанной улице'
+            };
+          }
+
+          const exactHouse = houses.find(h =>
+            h.building_num === buildingNumber ||
+            h.building_num === buildingNumber.toString()
+          );
+
+          if (!exactHouse) {
+            return {
+              success: false,
+              error: `Дом ${buildingNumber} не найден на улице ${street}`
+            };
+          }
+
+          const houseDetails = await this.getHouseDetails(exactHouse.fias_guid);
+
+          return {
+            success: true,
+            data: {
+              address: `${city}, ${street}, ${buildingNumber}`,
+              building_year: exactHouse.building_year,
+              building_year_actual: houseDetails?.building_year_actual,
+              floors: exactHouse.floors_count,
+              apartments: exactHouse.apartments_count,
+              material: houseDetails?.material,
+              series: houseDetails?.series,
+              ...houseDetails
+            }
+          };
+        } catch (error) {
+          console.error('Search error:', error);
+          return {
+            success: false,
+            error: `Ошибка: ${error.message}`
+          };
+        }
+      }
+
+      /**
+       * Поиск улицы с использованием CORS прокси
+       */
+      async searchStreet(city, streetName) {
+        try {
+          const apiUrl = `${this.baseUrl}/v1/streets?city=${encodeURIComponent(city)}&street=${encodeURIComponent(streetName)}&api_key=${this.apiKey}`;
+
+          // Вариант 1: cors-anywhere
+          const proxyUrl = this.corsProxy + apiUrl;
+
+          const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Street search failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // Если используется api.allorigins, данные обернуты в .contents
+          if (data.contents) {
+            return JSON.parse(data.contents).data || [];
+          }
+
+          return data.data || [];
+        } catch (error) {
+          console.error('Street search error:', error);
+          return null;
+        }
+      }
+
+      /**
+       * Получить дома на улице
+       */
+      async getHousesByStreet(streetFiasGuid) {
+        try {
+          const apiUrl = `${this.baseUrl}/v1/houses?street_fias_guid=${streetFiasGuid}&page_size=100&page=1&api_key=${this.apiKey}`;
+          const proxyUrl = this.corsProxy + apiUrl;
+
+          const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Houses search failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // Если используется api.allorigins, данные обернуты в .contents
+          if (data.contents) {
+            return JSON.parse(data.contents).data || [];
+          }
+
+          return data.data || [];
+        } catch (error) {
+          console.error('Houses search error:', error);
+          return null;
+        }
+      }
+
+      /**
+       * Получить детальную информацию о доме
+       */
+      async getHouseDetails(fiasGuid) {
+        try {
+          const apiUrl = `${this.baseUrl}/v1/houses/${fiasGuid}?api_key=${this.apiKey}`;
+          const proxyUrl = this.corsProxy + apiUrl;
+
+          const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`House details failed: ${response.status}`);
+          }
+
+          const data = await response.json();
+
+          // Если используется api.allorigins, данные обернуты в .contents
+          if (data.contents) {
+            return JSON.parse(data.contents).data || null;
+          }
+
+          return data.data || null;
+        } catch (error) {
+          console.error('House details error:', error);
+          return null;
+        }
+      }
+    }
+
+    // ===== ФУНКЦИЯ ДЛЯ РАСЧЕТА ИЗНОСА ЗДАНИЯ =====
+
+    async function calculateBuildingRisk() {
+      const city = document.getElementById('wear-city')?.value.trim();
+      const street = document.getElementById('wear-street')?.value.trim();
+      const house = document.getElementById('wear-house')?.value.trim();
+
+      if (!city || !street || !house) {
+        showResult('wear-results', {
+          icon: '❌',
+          title: 'Ошибка',
+          message: 'Заполните все поля (город, улица, дом)',
+          risk: 'error',
+          riskLevel: 'risk-high'
+        });
+        return;
+      }
+
+      showLoading('wear-results', 'Получаем данные о доме...');
+
+      // Используем API HouseScore с предоставленным ключом
+      const api = new HouseScoreAPI();
+      const result = await api.searchHouse(city, street, house);
+
+      if (!result.success) {
+        showResult('wear-results', {
+          icon: '⚠️',
+          title: 'Здание не найдено',
+          message: result.error,
+          risk: 'warning',
+          riskLevel: 'risk-medium'
+        });
+        return;
+      }
+
+      // Анализ полученных данных
+      const analysis = analyzeHouseData(result.data);
+
+      showResult('wear-results', {
+        icon: analysis.icon,
+        title: 'Результат анализа здания',
+        message: analysis.message,
+        details: analysis.details,
+        risk: analysis.risk,
+        riskLevel: analysis.riskLevel
+      });
+    }
+
+    // ===== ЭКСПОРТ =====
+    if (typeof window !== 'undefined') {
+      window.HouseScoreAPI = HouseScoreAPI;
+      window.calculateBuildingRisk = calculateBuildingRisk;
+    }
+
+    /**
+     * Анализ данных о доме и определение коэффициента риска
+     */
+    function analyzeHouseData(houseData) {
+      const buildingYear = houseData.building_year;
+      const currentYear = new Date().getFullYear();
+      const buildingAge = buildingYear ? currentYear - buildingYear : null;
+
+      let icon, message, details, risk, riskLevel;
+
+      // Анализ по возрасту дома
+      if (buildingAge !== null) {
+        if (buildingAge > 80) {
+          icon = '🔴';
+          risk = 'high';
+          riskLevel = 'risk-high';
+          message = `Возраст здания: ${buildingAge} лет (сталинка, очень старое)`;
+          details = `Здание построено в ${buildingYear} году и имеет очень высокий возраст. Требуется капитальный ремонт. Коэффициент: 1.25 (+25% к премии). Рекомендуется персональная оценка состояния.`;
+        } else if (buildingAge > 50) {
+          icon = '🟠';
+          risk = 'high';
+          riskLevel = 'risk-high';
+          message = `Возраст здания: ${buildingAge} лет (выстроено в ${buildingYear})`;
+          details = `Здание требует капитального ремонта. Коэффициент: 1.25 (+25% к премии). Рекомендуется осмотр здания специалистом.`;
+        } else if (buildingAge > 30) {
+          icon = '🟡';
+          risk = 'medium';
+          riskLevel = 'risk-medium';
+          message = `Возраст здания: ${buildingAge} лет (выстроено в ${buildingYear})`;
+          details = `Здание среднего возраста. Рекомендуется проверка состояния инженерных систем. Коэффициент: 1.00 (стандартный тариф).`;
+        } else if (buildingAge > 10) {
+          icon = '🟢';
+          risk = 'normal';
+          riskLevel = 'risk-low';
+          message = `Возраст здания: ${buildingAge} лет (выстроено в ${buildingYear})`;
+          details = `Здание относительно молодое и в хорошем состоянии. Коэффициент: 1.00 (стандартный тариф).`;
+        } else {
+          icon = '🟢';
+          risk = 'normal';
+          riskLevel = 'risk-low';
+          message = `Возраст здания: ${buildingAge} лет (новое, выстроено в ${buildingYear})`;
+          details = `Здание очень молодое и в отличном состоянии. Коэффициент: 1.00 (стандартный тариф).`;
+        }
+      } else {
+        icon = '❓';
+        risk = 'unknown';
+        riskLevel = 'risk-medium';
+        message = 'Данные о дате постройки не найдены';
+        details = `Адрес: ${houseData.address}. Информация может быть недоступна в базе данных.`;
+      }
+
+      // Добавить дополнительную информацию
+      if (houseData.floors) {
+        details += `\n\nЭтажей: ${houseData.floors}`;
+      }
+      if (houseData.apartments) {
+        details += `\nКвартир: ${houseData.apartments}`;
+      }
+
+      return { icon, message, details, risk, riskLevel };
+    }
+
+    // Получение коэффициента андеррайтинга из таблицы документа Word
+    function getUnderwritingFactor(age, height, weight) {
+    // ===== ПОЛНАЯ ИСПРАВЛЕННАЯ ТАБЛИЦА МЕДИКО-СОЦИАЛЬНОЙ ЭКСПЕРТИЗЫ =====
+    // Весовые категории: <39, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, >140
+
+    // Глобальная таблица андеррайтинга
+    window.UNDERWRITING_TABLE = {
+        140: {
+          "16-29": [1.25, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": [1.25, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        145: {
+          "16-29": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": [1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        150: {
+          "16-29": ["МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        155: {
+          "16-29": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        160: {
+          "16-29": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        165: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        170: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+         175: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        180: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        185: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        190: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        },
+        195: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"]
+        },
+        200: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"]
+        },
+        205: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, "МЕДО", "МЕДО", "МЕДО"]
+        },
+        210: {
+          "16-29": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "30-45": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "46-59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.25, "МЕДО", "МЕДО", "МЕДО", "МЕДО"],
+          "59": ["МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", "МЕДО", 1.25, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, "МЕДО", "МЕДО", "МЕДО", "МЕДО"]
+        }
+      };
+
+      // Определяем возрастную группу
+      let ageGroup;
+      if (age >= 16 && age <= 29) {
+        ageGroup = '16-29';
+      } else if (age >= 30 && age <= 45) {
+        ageGroup = '30-45';
+      } else if (age >= 46 && age <= 59) {
+        ageGroup = '46-59';
+      } else if (age >= 60) {
+        ageGroup = '>59';
+      } else {
+        return 1.00; // Для возраста < 16 лет
+      }
+
+      // Округляем рост до ближайшего значения в таблице
+      const heightKeys = Object.keys(window.UNDERWRITING_TABLE).map(Number).sort((a, b) => a - b);
+      let closestHeight = heightKeys[0];
+      for (let h of heightKeys) {
+        if (Math.abs(height - h) < Math.abs(height - closestHeight)) {
+          closestHeight = h;
+        }
+      }
+
+      // Если рост не в диапазоне таблицы, возвращаем стандартный тариф
+      if (!window.UNDERWRITING_TABLE[closestHeight] || !window.UNDERWRITING_TABLE[closestHeight][ageGroup]) {
+        return 1.00;
+      }
+
+      // Для веса определяем индекс в массиве
+      // Весовые категории: 0:<39, 1:40, 2:45, 3:50, 4:55, 5:60, 6:65, 7:70, 8:75, 9:80, 10:85, 11:90, 12:95, 13:100, 14:105, 15:110, 16:115, 17:120, 18:125, 19:130, 20:135, 21:140, 22:>140
+      const weightRanges = [39, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 141]; // 141 для >140
+
+      let weightIndex = 0;
+      if (weight <= 39) {
+        weightIndex = 0; // <39
+      } else if (weight > 140) {
+        weightIndex = 22; // >140
+      } else {
+        // Находим ближайший вес в таблице
+        for (let i = 0; i < weightRanges.length - 1; i++) {
+          if (weight >= weightRanges[i] && weight < weightRanges[i + 1]) {
+            weightIndex = i;
+            break;
+          }
+        }
+      }
+
+      // Возвращаем коэффициент из массива
+      const result = window.UNDERWRITING_TABLE[closestHeight][ageGroup][weightIndex];
+      return result === "МЕДО" ? "МЕДО" : (typeof result === 'number' ? result : 1.00);
+    }
+
+    // Функция запуска андеррайтинга
+    async function runUnderwriting() {
+        const formData = {
+          fio: document.getElementById('client-fio').value.trim(),
+          birthDate: document.getElementById('client-birth').value,
+          height: parseInt(document.getElementById('client-height').value) || 0,
+          weight: parseInt(document.getElementById('client-weight').value) || 0,
+          city: document.getElementById('property-city').value.trim(),
+          street: document.getElementById('property-street').value.trim(),
+          house: document.getElementById('property-house').value.trim(),
+
+          checkHealth: document.getElementById('check-health').checked,
+          checkBuilding: document.getElementById('check-building').checked,
+          checkEgrn: document.getElementById('check-egrn').checked,
+          checkBankruptcy: document.getElementById('check-bankruptcy').checked,
+          checkFssp: document.getElementById('check-fssp').checked
+        };
+
+        // Валидация
+        if (!formData.fio && !formData.city) {
+          alert('Укажите хотя бы ФИО или адрес объекта для проверки');
+          return;
+        }
+
+        // Показываем индикатор загрузки
+        const runBtn = document.getElementById('run-underwriting-btn');
+        const originalText = runBtn.innerHTML;
+        runBtn.disabled = true;
+        runBtn.innerHTML = '<span class="btn-icon">⏳</span><span>Анализируем...</span>';
+
+        try {
+          const results = await performUnderwritingChecks(formData);
+
+          // Показываем результаты
+          displayUnderwritingResults(results);
+
+        } catch (error) {
+          console.error('Ошибка андеррайтинга:', error);
+          alert('Произошла ошибка при анализе. Попробуйте позже.');
+        } finally {
+          runBtn.disabled = false;
+          runBtn.innerHTML = originalText;
+        }
+      }
+
+      // Функция выполнения проверок андеррайтинга
+      async function performUnderwritingChecks(data) {
+        const results = {
+          health: null,
+          building: null,
+          egrn: null,
+          bankruptcy: null,
+          fssp: null
+        };
+
+        // Медицинская оценка (локальная)
+        if (data.checkHealth && data.height > 0 && data.weight > 0) {
+          results.health = calculateHealthRisk(data.height, data.weight);
+        }
+
+
+        // Проверка по ЕГРН (заглушка - требует API)
+        if (data.checkEgrn && data.city && data.street && data.house) {
+          results.egrn = {
+            status: 'warning',
+            message: 'Проверка по ЕГРН требует интеграции с API Росреестра. Рекомендуется обратиться к специалисту для полной проверки юридической чистоты объекта.'
+          };
+        }
+
+        // Проверка на банкротство (заглушка - требует API)
+        if (data.checkBankruptcy && data.fio && data.birthDate) {
+          results.bankruptcy = {
+            status: 'warning',
+            message: 'Проверка на банкротство требует интеграции с ЕФРСБ. Рекомендуется проверить статус через официальные источники.'
+          };
+        }
+
+        // Проверка по ФССП (заглушка - требует API)
+        if (data.checkFssp && data.fio && data.birthDate) {
+          results.fssp = {
+            status: 'warning',
+            message: 'Проверка по ФССП требует интеграции с API ФССП. Рекомендуется проверить наличие исполнительных производств.'
+          };
+        }
+
+        return results;
+      }
+
+      // Локальная функция расчета ИМТ
+      function calculateHealthRisk(height, weight) {
+        const bmi = weight / ((height / 100) ** 2);
+
+        if (bmi < 18.5) {
+          return {
+            bmi: bmi.toFixed(1),
+            risk: 'low',
+            message: 'Недостаточная масса тела',
+            recommendation: 'Рекомендуется медицинское обследование'
+          };
+        } else if (bmi < 25) {
+          return {
+            bmi: bmi.toFixed(1),
+            risk: 'normal',
+            message: 'Нормальная масса тела',
+            recommendation: 'Риск минимален'
+          };
+        } else if (bmi < 30) {
+          return {
+            bmi: bmi.toFixed(1),
+            risk: 'medium',
+            message: 'Избыточная масса тела',
+            recommendation: 'Возможно повышение тарифа или требование медицинского обследования'
+          };
+        } else {
+          return {
+            bmi: bmi.toFixed(1),
+            risk: 'high',
+            message: 'Ожирение',
+            recommendation: 'Высокий риск. Требуется медицинское обследование перед страхованием'
+          };
+        }
+      }
+
+
+      // Функция отображения результатов андеррайтинга
+      function displayUnderwritingResults(results) {
+        closeUnderwritingModal();
+
+        // Показываем результаты в секции результатов
+        const resultsSection = document.getElementById('results-section');
+        const resultsContent = document.getElementById('results-content');
+
+        let html = '<div class="underwriting-results">';
+        html += '<h3>🔍 Результаты андеррайтинга</h3>';
+
+        // Медицинская оценка
+        if (results.health) {
+          const riskClass = results.health.risk === 'normal' ? 'success' : results.health.risk === 'low' ? 'warning' : 'error';
+          html += `
+            <div class="result-item ${riskClass}">
+              <div class="result-icon">📏</div>
+              <div class="result-content">
+                <strong>Медицинская оценка</strong>
+                <p>ИМТ: ${results.health.bmi} - ${results.health.message}</p>
+                <p><em>${results.health.recommendation}</em></p>
+              </div>
+            </div>
+          `;
+        }
+
+        // Износ здания
+        if (results.building) {
+          if (results.building.error) {
+            html += `
+              <div class="result-item warning">
+                <div class="result-icon">🏠</div>
+                <div class="result-content">
+                  <strong>Проверка здания</strong>
+                  <p>${results.building.error}</p>
+                </div>
+              </div>
+            `;
+          } else {
+            const riskClass = results.building.status === 'normal' ? 'success' : 'error';
+            html += `
+              <div class="result-item ${riskClass}">
+                <div class="result-icon">🏠</div>
+                <div class="result-content">
+                  <strong>Износ здания</strong>
+                  <p>${results.building.message}</p>
+                  <p><em>${results.building.recommendation}</em></p>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        // ЕГРН
+        if (results.egrn) {
+          html += `
+            <div class="result-item warning">
+              <div class="result-icon">📋</div>
+              <div class="result-content">
+                <strong>Проверка по ЕГРН</strong>
+                <p>${results.egrn.message}</p>
+              </div>
+            </div>
+          `;
+        }
+
+        // Банкротство
+        if (results.bankruptcy) {
+          html += `
+            <div class="result-item warning">
+              <div class="result-icon">⚖️</div>
+              <div class="result-content">
+                <strong>Проверка на банкротство</strong>
+                <p>${results.bankruptcy.message}</p>
+              </div>
+            </div>
+          `;
+        }
+
+        // ФССП
+        if (results.fssp) {
+          html += `
+            <div class="result-item warning">
+              <div class="result-icon">🚔</div>
+              <div class="result-content">
+                <strong>Проверка по ФССП</strong>
+                <p>${results.fssp.message}</p>
+              </div>
+            </div>
+          `;
+        }
+
+        html += '<div class="underwriting-disclaimer">';
+        html += '<p><strong>⚠️ Важно:</strong> Это предварительная оценка рисков. Для точной оценки рекомендуется обратиться к страховой компании или специалисту.</p>';
+        html += '</div>';
+
+        html += '</div>';
+
+        resultsContent.innerHTML = html;
+        resultsSection.style.display = 'block';
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
+    // Очистка всех результатов
+    function clearAllResults() {
+      document.getElementById('wear-results').innerHTML = '';
+      document.getElementById('egrn-results').innerHTML = '';
+      document.getElementById('bankruptcy-results').innerHTML = '';
+      document.getElementById('fssp-results').innerHTML = '';
+    }
+
+    // Показать результат проверки
+    function showResult(containerId, result) {
+      const container = document.getElementById(containerId);
+
+      let riskClass = 'success';
+      let riskLevel = 'risk-low';
+
+      if (result.risk === 'medium') {
+        riskClass = 'warning';
+        riskLevel = 'risk-medium';
+      } else if (result.risk === 'high') {
+        riskClass = 'error';
+        riskLevel = 'risk-high';
+      }
+
+      if (result.error) {
+        riskClass = 'error';
+      }
+
+      const html = `
+        <div class="result-item ${riskClass}">
+          <div class="result-icon">${result.icon || '📊'}</div>
+          <div class="result-content">
+            <strong>${result.title}</strong>
+            <p>${result.message}</p>
+            ${result.details ? `<p>${result.details}</p>` : ''}
+            <span class="risk-level ${riskLevel}">${result.riskLevel || 'Низкий риск'}</span>
+          </div>
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    // Показать состояние загрузки
+    function showLoading(containerId, message) {
+      const container = document.getElementById(containerId);
+      const html = `
+        <div class="result-item loading">
+          <div class="result-icon">⏳</div>
+          <div class="result-content">
+            <strong>Проверка выполняется...</strong>
+            <p>${message}</p>
+          </div>
+        </div>
+      `;
+      container.innerHTML = html;
+    }
+
+
+
+    // Парсинг данных с конкретного URL здания
+    async function parseBuildingUrl() {
+      const buildingUrl = document.getElementById('building-url').value.trim();
+
+      if (!buildingUrl) {
+        showResult('wear-results', {
+          icon: '⚠️',
+          title: 'Ошибка',
+          message: 'Введите URL страницы здания',
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+        return;
+      }
+
+      // Проверяем, что URL правильный
+      if (!buildingUrl.match(/^https:\/\/dom\.mingkh\.ru\//)) {
+        showResult('wear-results', {
+          icon: '⚠️',
+          title: 'Неверный URL',
+          message: 'URL должен начинаться с https://dom.mingkh.ru/',
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+        return;
+      }
+
+      showLoading('wear-results', 'Парсим данные со страницы здания...');
+
+      try {
+        console.log('Парсим URL:', buildingUrl);
+
+        // Пробуем разные CORS proxy для парсинга страницы
+        const corsProxies = [
+          'https://cors-anywhere.herokuapp.com/',
+          'https://api.allorigins.win/raw?url='
+        ];
+
+        let buildingData = null;
+        let lastError = null;
+
+        for (const proxy of corsProxies) {
+          try {
+            const targetUrl = proxy === 'https://api.allorigins.win/raw?url='
+              ? proxy + encodeURIComponent(buildingUrl)
+              : proxy + buildingUrl;
+
+            console.log('Пробуем proxy:', proxy);
+
+            const response = await fetch(targetUrl, {
+              method: 'GET',
+              headers: proxy === 'https://api.allorigins.win/raw?url=' ? {} : {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              }
+            });
+
+            if (response.ok) {
+              const html = await response.text();
+              console.log('Получен HTML, длина:', html.length);
+
+              // Парсим HTML
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, 'text/html');
+
+              // Ищем данные об износе
+              const bodyText = doc.body.textContent;
+
+              // Разные варианты поиска износа
+              let wearPercent = null;
+              let wearDate = null;
+              let buildYear = null;
+
+              // Ищем износ в тексте
+              const wearMatch = bodyText.match(/Износ[^%]*(\d+(?:\.\d+)?)\s*%/i);
+              if (wearMatch) {
+                wearPercent = parseFloat(wearMatch[1]);
+              }
+
+              // Ищем дату износа
+              const dateMatch = bodyText.match(/Дата[^:]*износ[^:]*[:]\s*(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})/i) ||
+                               bodyText.match(/(\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})[^:]*износ/i);
+              if (dateMatch) {
+                wearDate = dateMatch[1].replace(/[-]/g, '.');
+              }
+
+              // Ищем год постройки
+              const yearMatch = bodyText.match(/Год[^:]*постройки[^:]*[:]\s*(\d{4})/i) ||
+                               bodyText.match(/Введен[^:]*эксплуатацию[^:]*[:]\s*(\d{4})/i) ||
+                               bodyText.match(/(\d{4})[^:]*год[^:]*постройки/i);
+              if (yearMatch) {
+                buildYear = parseInt(yearMatch[1]);
+              }
+
+              if (wearPercent !== null) {
+                buildingData = { wearPercent, wearDate, buildYear };
+                console.log('Найдены данные:', buildingData);
+                break; // Выходим из цикла, если данные найдены
+              }
+            }
+          } catch (error) {
+            console.log('Proxy не сработал:', proxy, error.message);
+            lastError = error;
+            continue;
+          }
+        }
+
+        if (!buildingData) {
+          throw new Error(`Не удалось спарсить данные с страницы. ${lastError ? 'Последняя ошибка: ' + lastError.message : ''} Попробуйте ввести данные вручную.`);
+        }
+
+        // Обрабатываем найденные данные
+        const { wearPercent, wearDate, buildYear } = buildingData;
+
+        // Рассчитываем возраст здания
+        const currentYear = new Date().getFullYear();
+        const buildingAge = buildYear ? currentYear - buildYear : null;
+
+        // Определяем риск
+        let risk = 'normal';
+        let riskLevel = 'Низкий риск';
+        let message = `Износ здания: ${wearPercent}% (спарсено из URL)`;
+
+        if (wearDate) {
+          message += ` (дата оценки: ${wearDate})`;
+        }
+
+        if (buildYear) {
+          message += `, год постройки: ${buildYear}`;
+          if (buildingAge) {
+            message += ` (возраст: ${buildingAge} лет)`;
+          }
+        }
+
+        if (wearPercent > 60) {
+          risk = 'high';
+          riskLevel = 'Критический риск';
+          message += '. Критический износ - страхование невозможно';
+        } else if (wearPercent > 40) {
+          risk = 'high';
+          riskLevel = 'Высокий риск';
+          message += '. Высокий износ - возможен отказ в страховании';
+        } else if (wearPercent > 25) {
+          risk = 'medium';
+          riskLevel = 'Средний риск';
+          message += '. Повышенный износ - рекомендуется дополнительная проверка';
+        } else {
+          message += '. Износ в допустимых пределах';
+        }
+
+        showResult('wear-results', {
+          icon: '✅',
+          title: 'Данные получены из URL',
+          message: message,
+          risk: risk,
+          riskLevel: riskLevel
+        });
+
+      } catch (error) {
+        console.error('Ошибка при парсинге URL:', error);
+
+        // При ошибке показываем инструкции по ручному вводу
+        showResult('wear-results', {
+          icon: '⚠️',
+          title: 'Парсинг не удался',
+          message: 'Не удалось автоматически получить данные с указанного URL',
+          details: `
+            <div style="margin-top: 15px;">
+              <div style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+                <p style="margin: 0; font-size: 14px; color: #856404;">
+                  🔒 <strong>Причина:</strong> Сайт dom.mingkh.ru блокирует автоматический доступ<br>
+                  <strong>Решение:</strong> Откройте URL вручную и введите данные ниже
+                </p>
+              </div>
+
+              <button onclick="window.open('${buildingUrl}', '_blank')" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                🔗 Открыть страницу
+              </button>
+
+              <p style="margin: 15px 0 10px 0; font-size: 14px; color: #666;">
+                <strong>Инструкция:</strong><br>
+                1. На странице найдите раздел "Характеристики здания"<br>
+                2. Скопируйте данные об износе и годе постройки<br>
+                3. Введите их ниже:
+              </p>
+
+              <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px;">
+                <input type="number" id="manual-wear-percent" placeholder="Износ %" style="width: 100px; padding: 5px;" min="0" max="100" step="0.1">
+                <input type="text" id="manual-wear-date" placeholder="Дата оценки" style="width: 140px; padding: 5px;">
+                <input type="number" id="manual-build-year" placeholder="Год постройки" style="width: 120px; padding: 5px;" min="1800" max="2030">
+                <button onclick="processManualWearData()" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer;">
+                  ✅ Обработать
+                </button>
+              </div>
+
+              <p style="margin: 10px 0; font-size: 12px; color: #888;">
+                Ошибка парсинга: ${error.message}
+              </p>
+            </div>
+          `,
+          risk: 'manual',
+          riskLevel: 'Требуется ввод вручную'
+        });
+      }
+    }
+
+    // Расчет риска здания (сначала пытаемся через API, затем ручной ввод)
+
+    // Проверка ЕГРН файла
+    async function checkEGRN() {
+      const fileInput = document.getElementById('egrn-file');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        showResult('egrn-results', {
+          icon: '⚠️',
+          title: 'Файл не выбран',
+          message: 'Выберите XML файл выписки ЕГРН',
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+        return;
+      }
+
+      showLoading('egrn-results', 'Анализируем файл выписки ЕГРН...');
+
+      try {
+        const result = await analyzeEGRNFile(file);
+        showResult('egrn-results', result);
+      } catch (error) {
+        showResult('egrn-results', {
+          icon: '❌',
+          title: 'Ошибка анализа файла',
+          message: 'Не удалось обработать файл ЕГРН',
+          details: error.message,
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+      }
+    }
+
+    // Анализ файла ЕГРН
+    function analyzeEGRNFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+          try {
+            const xmlText = e.target.result;
+
+            // Парсим XML
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+            // Проверяем на ошибки парсинга
+            const parseError = xmlDoc.querySelector('parsererror');
+            if (parseError) {
+              throw new Error('Некорректный формат XML файла');
+            }
+
+            // Ищем ограничения и обременения
+            const restrictions = xmlDoc.querySelectorAll('Restriction, restriction');
+            const encumbrances = xmlDoc.querySelectorAll('Encumbrance, encumbrance');
+            const seizures = xmlDoc.querySelectorAll('*[contains(text(), "изъятие")], *[contains(text(), "seizure")]');
+
+            let issues = [];
+            let risk = 'normal';
+            let riskLevel = 'Низкий риск';
+            let message = 'Файл ЕГРН успешно проанализирован';
+
+            if (restrictions.length > 0) {
+              issues.push(`Найдено ограничений прав: ${restrictions.length}`);
+              risk = 'high';
+              riskLevel = 'Высокий риск';
+            }
+
+            if (encumbrances.length > 0) {
+              issues.push(`Найдены обременения: ${encumbrances.length}`);
+              risk = 'high';
+              riskLevel = 'Высокий риск';
+            }
+
+            if (seizures.length > 0) {
+              issues.push('Есть решения об изъятии объекта');
+              risk = 'high';
+              riskLevel = 'Высокий риск';
+            }
+
+            if (issues.length === 0) {
+              message += '. Ограничений и обременений не найдено.';
+            } else {
+              message += '. Обнаружены проблемы: ' + issues.join(', ') + '.';
+            }
+
+            resolve({
+              icon: '📋',
+              title: 'Результат анализа ЕГРН',
+              message: message,
+              risk: risk,
+              riskLevel: riskLevel
+            });
+
+          } catch (error) {
+            reject(error);
+          }
+        };
+
+        reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+        reader.readAsText(file);
+      });
+    }
+
+    // Проверка банкротства
+    async function checkBankruptcy() {
+      const fio = document.getElementById('bankruptcy-fio').value.trim();
+
+      if (!fio) {
+        showResult('bankruptcy-results', {
+          icon: '⚠️',
+          title: 'ФИО не указано',
+          message: 'Введите полное ФИО для проверки',
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+        return;
+      }
+
+      showLoading('bankruptcy-results', 'Проверяем данные в ЕФРСБ...');
+
+      try {
+        // Имитация проверки (в реальности - запрос к bankrot.fedresurs.ru)
+        await new Promise(resolve => setTimeout(resolve, 2500));
+
+        // Демо-результат (в продакшене - реальный парсинг)
+        const hasBankruptcy = Math.random() > 0.8; // 20% шанс найти банкротство
+
+        if (hasBankruptcy) {
+          showResult('bankruptcy-results', {
+            icon: '⚖️',
+            title: 'Результат проверки банкротства',
+            message: 'Найдено дело о банкротстве. Требуется дополнительная проверка.',
+            details: 'Рекомендуется обратиться к финансовому консультанту',
+            risk: 'high',
+            riskLevel: 'Высокий риск'
+          });
+        } else {
+          showResult('bankruptcy-results', {
+            icon: '✅',
+            title: 'Результат проверки банкротства',
+            message: 'Дела о банкротстве не найдены',
+            risk: 'normal',
+            riskLevel: 'Низкий риск'
+          });
+        }
+
+      } catch (error) {
+        showResult('bankruptcy-results', {
+          icon: '❌',
+          title: 'Ошибка проверки',
+          message: 'Не удалось выполнить проверку банкротства',
+          details: error.message,
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+      }
+    }
+
+    // Проверка ФССП
+    async function checkFSSP() {
+      const fio = document.getElementById('fssp-fio').value.trim();
+      const birthDate = document.getElementById('fssp-birth').value;
+      const region = document.getElementById('fssp-region').value;
+
+      if (!fio || !birthDate || !region) {
+        showResult('fssp-results', {
+          icon: '⚠️',
+          title: 'Недостаточно данных',
+          message: 'Заполните все поля: ФИО, дата рождения и регион',
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+        return;
+      }
+
+      showLoading('fssp-results', 'Проверяем данные в ФССП...');
+
+      try {
+        // Имитация проверки (в реальности - парсинг fssp.gov.ru)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Демо-результат (в продакшене - реальный парсинг)
+        const hasDebts = Math.random() > 0.7; // 30% шанс найти долги
+        const debtAmount = hasDebts ? Math.floor(Math.random() * 500000) + 10000 : 0;
+
+        if (hasDebts) {
+          showResult('fssp-results', {
+            icon: '🚔',
+            title: 'Результат проверки ФССП',
+            message: `Найдены исполнительные производства на сумму ${debtAmount.toLocaleString('ru-RU')} ₽`,
+            details: 'Требуется погашение задолженности перед страхованием',
+            risk: 'high',
+            riskLevel: 'Высокий риск'
+          });
+        } else {
+          showResult('fssp-results', {
+            icon: '✅',
+            title: 'Результат проверки ФССП',
+            message: 'Исполнительные производства не найдены',
+            risk: 'normal',
+            riskLevel: 'Низкий риск'
+          });
+        }
+
+      } catch (error) {
+        showResult('fssp-results', {
+          icon: '❌',
+          title: 'Ошибка проверки',
+          message: 'Не удалось выполнить проверку ФССП',
+          details: error.message,
+          risk: 'error',
+          riskLevel: 'Ошибка'
+        });
+      }
+    }
+  </script>
+
+  <!-- Глобальные функции андеррайтинга -->
+  <script>
+    // Глобальные функции для модального окна андеррайтинга
+    function openUnderwritingModal() {
+      const modal = document.getElementById('underwriting-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        // Активируем первую вкладку по умолчанию
+        if (typeof switchTab === 'function') {
+          switchTab('health');
+        }
+      } else {
+        console.error('Modal element not found');
+      }
+    }
+
+    function closeUnderwritingModal() {
+      const modal = document.getElementById('underwriting-modal');
+      if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        if (typeof clearAllResults === 'function') {
+          clearAllResults();
+        }
+      }
+    }
+
+    // Функция переключения вкладок
+    function switchTab(tabId) {
+      // Скрыть все вкладки
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+
+      // Убрать активный класс со всех кнопок
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      // Показать выбранный контент
+      const tabContent = document.getElementById(tabId + '-content');
+      if (tabContent) {
+        tabContent.classList.add('active');
+      }
+
+      // Активировать кнопку
+      const tabBtn = document.querySelector(`[data-tab="${tabId}"]`);
+      if (tabBtn) {
+        tabBtn.classList.add('active');
+      }
+
+      // Очистить результаты предыдущей проверки
+      if (typeof clearAllResults === 'function') {
+        clearAllResults();
+      }
+    }
+
+    // Функция для проверки существования функций
+    function checkFunctions() {
+      console.log('openUnderwritingModal:', typeof openUnderwritingModal);
+      console.log('closeUnderwritingModal:', typeof closeUnderwritingModal);
+      console.log('switchTab:', typeof switchTab);
+    }
+  </script>
+</body>
+</html>
+
+
