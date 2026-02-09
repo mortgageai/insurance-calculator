@@ -99,6 +99,14 @@ window.BANKS = {
     allow_discount_title: true
   },
 
+  "Совкомбанк": {
+    aliases: ["совкомбанк", "совком", "совком банк"],
+    add_percent: 10,
+    allow_discount_property: true,
+    allow_discount_life: true,
+    allow_discount_title: true
+  },
+
   "ПСБ (Промсвязьбанк)": {
     aliases: ["псб", "промсвязьбанк", "псб банк"],
     add_percent: 0,
